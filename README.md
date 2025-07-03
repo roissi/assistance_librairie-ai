@@ -1,36 +1,26 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Assistant Fiche Livre / Book Sheet Generator
 
-## Getting Started
+## Description (Français)
 
-First, run the development server:
+Assistant Fiche Livre est un générateur automatisé de fiches produit, meta descriptions SEO et textes de newsletter destiné aux librairies, bibliothèques et acteurs de l’édition. À partir d’une quatrième de couverture (texte collé ou image via OCR), l’application produit :
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Une fiche produit sobre et informative  
+- Une meta description optimisée pour le référencement naturel (SEO)  
+- Un texte de newsletter prêt à l’emploi  
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Description (English)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Book Sheet Generator is an automated tool for generating product sheets, SEO meta descriptions, and newsletter texts aimed at bookstores, libraries, and publishing professionals. From a book’s back cover (pasted text or image via OCR), the app creates:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- A clean, informative product sheet  
+- An SEO-optimized meta description  
+- A ready-to-use newsletter snippet  
 
-## Learn More
+## Stack / Technologies
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Next.js** (App Router)  
+- **TypeScript**  
+- **React**  
+- **Tailwind CSS 4**  
+- **shadcn/ui** (component library)  
+- **OpenAI API** (gpt-3.5-turbo) 
