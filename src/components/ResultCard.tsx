@@ -17,9 +17,15 @@ export default function ResultCard({ title, id, text, copied, onCopy }: Props) {
         <CardTitle className="text-lg text-gray-800">{title}</CardTitle>
         <Button variant="ghost" size="icon" onClick={() => onCopy(id, text)}>
           {copied[id] ? (
-            <Check className="w-4 h-4 text-green-600" />
+            <>
+              <Check className="w-4 h-4 text-green-600" />
+              <span>Copié</span>
+            </>
           ) : (
-            <Clipboard className="w-4 h-4 text-gray-600" />
+            <>
+              <Clipboard className="w-4 h-4 text-gray-600" />
+              <span>Copier</span>
+            </>
           )}
         </Button>
       </CardHeader>
