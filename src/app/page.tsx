@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import ResultCard from "@/components/ResultCard";
 import { inter } from "@/lib/fonts";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, AlertCircle } from "lucide-react";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 
 type GenerationMode = "fiche" | "critique";
@@ -87,14 +87,18 @@ export default function HomePage() {
         {/* Mode */}
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700">
-            Type de génération
+            Choisissez un type de génération
           </label>
 
           <CustomSelect
             value={mode}
             onChange={(value) => setMode(value as GenerationMode)}
             options={[
-              { value: "fiche", label: "Fiche produit + SEO + newsletter" },
+              {
+                value: "fiche",
+                label:
+                  "Fiche produit + Meta description SEO + Texte newsletter",
+              },
               { value: "critique", label: "Texte critique littéraire" },
             ]}
             placeholder="Choisissez un mode"
@@ -105,26 +109,26 @@ export default function HomePage() {
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              Auteur
+              Indiquez le nom de l&apos;auteur{" "}
+              <span className="text-[#9542e3]">*</span>
             </label>
             <input
               type="text"
               value={author}
               onChange={(e) => setAuthor(e.target.value)}
               className="w-full p-2 rounded-md border border-gray-300 bg-white focus:ring focus:ring-pink-200"
-              placeholder="Auteur du livre"
             />
           </div>
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              Titre du livre
+              Indiquez le titre du livre{" "}
+              <span className="text-[#9542e3]">*</span>
             </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full p-2 rounded-md border border-gray-300 bg-white focus:ring focus:ring-pink-200"
-              placeholder="Titre du livre"
             />
           </div>
         </div>
@@ -133,15 +137,15 @@ export default function HomePage() {
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
             <ArrowRight className="w-8 h-8 sm:w-6 h-6 text-gray-700" />
-            OPTION 1 : Insérer le texte source de la 4ᵉ de couverture (laissez
-            vide si image uploadée)
+            OPTION 1 : Insérez le texte source de la 4ᵉ de couverture (laissez
+            ce bloc vide si vous uploadez une photo - option 2)
           </label>
           <textarea
             rows={4}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            className="w-full p-2 rounded-md border"
-            placeholder="Collez ici la 4e de couverture"
+            className="w-full p-2 rounded-md border bg-white disabled:bg-white"
+            placeholder="Recopiez ou collez ici la 4e de couverture"
             disabled={!!imageFile}
           />
         </div>
@@ -149,8 +153,9 @@ export default function HomePage() {
         {/* Upload image */}
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-            <ArrowRight className="w-6 h-6 text-gray-700" />
-            OPTION 2 : Uploader une photo de la 4ᵉ de couverture
+            <ArrowRight className="w-8 h-8 sm:w-6 h-6 text-gray-700" />
+            OPTION 2 : Uploadez une photo de la 4ᵉ de couverture (le texte doit
+            être lisible)
           </label>
 
           <div className="flex items-center gap-2">
@@ -169,9 +174,9 @@ export default function HomePage() {
             {/* 2. label personnalisé */}
             <label
               htmlFor="cover-input"
-              className="inline-flex items-center gap-1 px-4 py-2 bg-white border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50 text-gray-900"
+              className="inline-flex items-center gap-1 px-4 py-2 bg-white border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50 text-gray-700"
             >
-              Choisir un fichier
+              Choisissez un fichier
             </label>
 
             {/* 3. nom du fichier / placeholder */}
@@ -194,14 +199,19 @@ export default function HomePage() {
           </div>
         )}
 
-        {error && <p className="text-red-600 text-sm">{error}</p>}
+        {error && (
+          <div className="flex items-start gap-2 rounded-md border border-red-300 bg-red-50 p-4">
+            <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600" />
+            <div className="flex-1 text-sm text-red-800">{error}</div>
+          </div>
+        )}
 
         <Button
           type="submit"
           className="w-full bg-[#a15be3] hover:bg-[#9542e3] text-white transition-colors duration-200"
           disabled={loading}
         >
-          {loading ? "Génération en cours..." : "Générer"}
+          {loading ? "Génération en cours..." : "Générez les textes attendus"}
         </Button>
       </form>
 

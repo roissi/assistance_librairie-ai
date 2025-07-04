@@ -14,42 +14,60 @@ export async function POST(req: Request) {
 
   const contentType = req.headers.get("content-type") ?? "";
 
+  // --- Extraction des champs ---
   if (contentType.includes("multipart/form-data")) {
     const form = await req.formData();
-    const modeValue = form.get("mode");
-    if (modeValue === "critique") {
-      mode = "critique";
-    }
-    title = String(form.get("title") ?? "");
-    author = String(form.get("author") ?? "");
+    const m = form.get("mode");
+    if (m === "critique") mode = "critique";
+
+    title = String(form.get("title") ?? "").trim();
+    author = String(form.get("author") ?? "").trim();
 
     const fileBlob = form.get("coverImage");
     if (fileBlob instanceof Blob && fileBlob.size > 0) {
-      const buffer = await fileBlob.arrayBuffer();
-      inputText = (await extractTextWithOCR(buffer)).trim();
+      const buf = await fileBlob.arrayBuffer();
+      inputText = (await extractTextWithOCR(buf)).trim();
     } else {
-      inputText = String(form.get("textSource") ?? "");
+      inputText = String(form.get("textSource") ?? "").trim();
     }
   } else {
     const json = await req.json();
-    inputText = typeof json.input === "string" ? json.input : "";
-    if (json.mode === "critique") {
-      mode = "critique";
-    }
-    title = typeof json.title === "string" ? json.title : "";
-    author = typeof json.author === "string" ? json.author : "";
+    mode = json.mode === "critique" ? "critique" : "fiche";
+    title = (typeof json.title === "string" ? json.title : "").trim();
+    author = (typeof json.author === "string" ? json.author : "").trim();
+    inputText = (typeof json.input === "string" ? json.input : "").trim();
+  }
+
+  // --- Validations côté API ---
+  if (!author) {
+    return NextResponse.json(
+      { error: "Vous devez impérativement indiquer le nom de l'auteur." },
+      { status: 400 },
+    );
+  }
+
+  if (!title) {
+    return NextResponse.json(
+      { error: "Vous devez impérativement indiquer le titre du livre." },
+      { status: 400 },
+    );
+  }
+
+  if (!inputText) {
+    return NextResponse.json(
+      {
+        error:
+          "Vous devez impérativement entrer un texte (option 1) ou charger une photo (option 2) pour lancer la génération.",
+      },
+      { status: 400 },
+    );
   }
 
   if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json({ error: "Clé API manquante" }, { status: 500 });
   }
-  if (!inputText.trim()) {
-    return NextResponse.json(
-      { error: "Texte vide après OCR" },
-      { status: 400 },
-    );
-  }
 
+  // --- Appel OpenAI ---
   const prompt = getPrompt(mode, inputText, title, author);
 
   try {
@@ -68,32 +86,38 @@ export async function POST(req: Request) {
 
     const data = await aiRes.json();
     if (!aiRes.ok) {
-      const errorMessage =
+      const errMsg =
         typeof data.error?.message === "string"
           ? data.error.message
           : "Erreur lors de l’appel à OpenAI";
-      return NextResponse.json({ error: errorMessage }, { status: 500 });
+      return NextResponse.json({ error: errMsg }, { status: 500 });
     }
 
     const content: string = data.choices?.[0]?.message?.content ?? "";
-    let fiche = "";
-    let meta = "";
-    let newsletter = "";
+    let fiche = "",
+      meta = "",
+      newsletter = "";
 
     if (mode === "critique") {
       fiche = content.trim();
     } else {
-      const ficheMatch = content.match(/FICHE:\s*([\s\S]*?)META:/);
-      const metaMatch = content.match(/META:\s*([\s\S]*?)NEWSLETTER:/);
-      const newsMatch = content.match(/NEWSLETTER:\s*([\s\S]*)/);
-      fiche = ficheMatch?.[1]?.trim() ?? "";
-      meta = metaMatch?.[1]?.trim() ?? "";
-      newsletter = newsMatch?.[1]?.trim() ?? "";
+      const mF = content.match(/FICHE:\s*([\s\S]*?)META:/);
+      const mM = content.match(/META:\s*([\s\S]*?)NEWSLETTER:/);
+      const mN = content.match(/NEWSLETTER:\s*([\s\S]*)/);
+      fiche = mF?.[1].trim() ?? "";
+      meta = mM?.[1].trim() ?? "";
+      newsletter = mN?.[1].trim() ?? "";
     }
 
     return NextResponse.json({ fiche, meta, newsletter });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch (err: unknown) {
+    // Gestion sécurisée de l'erreur sans `any`
+    const msg =
+      err instanceof Error
+        ? err.message
+        : typeof err === "string"
+          ? err
+          : "Erreur inattendue";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
