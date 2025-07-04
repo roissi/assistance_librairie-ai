@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, ChangeEvent, FormEvent } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import ResultCard from "@/components/ResultCard";
 import { inter } from "@/lib/fonts";
 import { ArrowRight } from "lucide-react";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 
 type GenerationMode = "fiche" | "critique";
 
@@ -34,10 +35,6 @@ export default function HomePage() {
     }
     setImagePreview("");
   }, [imageFile]);
-
-  const handleModeChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    setMode(e.target.value as GenerationMode);
-  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -92,14 +89,16 @@ export default function HomePage() {
           <label className="block text-sm font-medium text-gray-700">
             Type de génération
           </label>
-          <select
+
+          <CustomSelect
             value={mode}
-            onChange={handleModeChange}
-            className="w-full p-2 rounded-md border border-gray-300 bg-white focus:ring focus:ring-pink-200"
-          >
-            <option value="fiche">Fiche produit + SEO + newsletter</option>
-            <option value="critique">Texte critique littéraire</option>
-          </select>
+            onChange={(value) => setMode(value as GenerationMode)}
+            options={[
+              { value: "fiche", label: "Fiche produit + SEO + newsletter" },
+              { value: "critique", label: "Texte critique littéraire" },
+            ]}
+            placeholder="Choisissez un mode"
+          />
         </div>
 
         {/* Auteur / Titre */}
