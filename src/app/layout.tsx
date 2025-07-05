@@ -16,17 +16,24 @@ export default function RootLayout({
     <html lang="fr" className={cabin.className}>
       <body className="min-h-screen flex flex-col items-center justify-between bg-gradient-to-b from-[#ede4f7] to-[#fdfcfb] py-10 antialiased text-gray-900">
         {children}
-        <footer className="mt-8 text-sm text-gray-600">
-          © Cyril De Graeve / 2025 -{" "}
-          <a
-            href="https://www.bethere.cyrildegraeve.dev/"
-            className="underline hover:text-gray-800"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            bethere.cyrildegraeve.dev
-          </a>{" "}
-          - 06 76 04 54 31
+        <footer className="mt-8 text-sm text-gray-600 text-center">
+          {/* Sur mobile, chaque span est un block (nouvelle ligne) et le dash est caché */}
+          {/* À partir de sm (≥640px), on passe en inline et on affiche le dash après 2025 */}
+          <span className="block sm:inline">
+            © Cyril De Graeve / 2025
+            <span className="hidden sm:inline"> – </span>
+          </span>
+          <span className="block sm:inline">
+            <a
+              href="https://www.bethere.cyrildegraeve.dev/"
+              className="underline hover:text-gray-800"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              bethere.cyrildegraeve.dev
+            </a>
+            {" – "}06 76 04 54 31
+          </span>
         </footer>
       </body>
     </html>
