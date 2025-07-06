@@ -23,7 +23,12 @@ export async function POST(req: Request) {
       const fileBlob = form.get("coverImage");
       if (fileBlob instanceof Blob && fileBlob.size > 0) {
         const buf = await fileBlob.arrayBuffer();
-        inputText = (await extractTextWithOCR(buf)).trim();
+        // 1) on récupère d’abord le texte brut
+        const extractedText = await extractTextWithOCR(buf);
+        // 2) on loggue sa longueur et son contenu
+        console.log("OCR:", extractedText.length, extractedText);
+        // 3) on nettoie (trim) pour la suite
+        inputText = extractedText.trim();
       } else {
         inputText = String(form.get("textSource") ?? "").trim();
       }
