@@ -23,7 +23,7 @@ export const CustomSelect = ({
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const selectRef = useRef<HTMLDivElement>(null);
 
-  // Ferme le menu au clic hors composant
+  // Fermer le menu au clic hors composant
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
       if (selectRef.current && !selectRef.current.contains(e.target as Node)) {
@@ -37,7 +37,7 @@ export const CustomSelect = ({
 
   const selectedOption = options.find((o) => o.value === value);
 
-  // Gestion du clavier
+  // Gestion clavier
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (!isOpen) {
       if (["Enter", " ", "ArrowDown"].includes(e.key)) {
@@ -73,7 +73,7 @@ export const CustomSelect = ({
     }
   };
 
-  // Scroll l’élément focus si besoin
+  // Scroll vers l’item focus
   useEffect(() => {
     if (isOpen && focusedIndex >= 0) {
       const container = selectRef.current?.querySelector(
@@ -100,19 +100,17 @@ export const CustomSelect = ({
           isOpen && "ring-2 ring-offset-1 ring-primary",
         )}
         onClick={() => {
-          setIsOpen((o) => !o);
+          setIsOpen((open) => !open);
           setFocusedIndex(options.findIndex((o) => o.value === value));
         }}
       >
-        <span className="flex items-center gap-2 truncate">
-          <span
-            className={cn(
-              selectedOption ? "text-gray-900" : "text-gray-500",
-              "truncate",
-            )}
-          >
-            {selectedOption ? selectedOption.label : placeholder}
-          </span>
+        <span
+          className={cn(
+            selectedOption ? "text-gray-900" : "text-gray-500",
+            "truncate",
+          )}
+        >
+          {selectedOption ? selectedOption.label : placeholder}
         </span>
         <ChevronDown
           className={cn(
@@ -129,7 +127,7 @@ export const CustomSelect = ({
             focusedIndex >= 0 ? `option-${focusedIndex}` : undefined
           }
           tabIndex={-1}
-          className="custom-select-options absolute z-50 mt-1 w-full overflow-hidden rounded-md border border-input bg-popover shadow-lg"
+          className="custom-select-options absolute z-50 mt-1 w-full overflow-hidden rounded-md border border-input bg-white shadow-lg"
         >
           <div className="max-h-60 overflow-y-auto p-1">
             {options.map((opt, idx) => {
@@ -143,8 +141,8 @@ export const CustomSelect = ({
                   aria-selected={isSelected}
                   className={cn(
                     "relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm",
-                    "hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-                    isFocused && "bg-white",
+                    "hover:bg-gray-100",
+                    isFocused && "bg-gray-100",
                   )}
                   onClick={() => {
                     onChange(opt.value);
@@ -154,11 +152,11 @@ export const CustomSelect = ({
                   onMouseEnter={() => setFocusedIndex(idx)}
                 >
                   {isSelected && (
-                    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
-                      <Check className="h-4 w-4 text-[#9542e3]" />
-                    </span>
+                    <Check className="absolute left-2 h-4 w-4 text-[#9542e3]" />
                   )}
-                  <span>{opt.label}</span>
+                  <span className={isSelected ? "font-medium" : ""}>
+                    {opt.label}
+                  </span>
                 </div>
               );
             })}

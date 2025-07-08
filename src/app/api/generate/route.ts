@@ -3,7 +3,7 @@ import { getPrompt } from "@/lib/prompts";
 import { extractTextWithOCR } from "@/lib/ocr";
 
 export const runtime = "nodejs";
-type GenerationMode = "fiche" | "critique";
+type GenerationMode = "fiche" | "critique" | "traduction";
 
 export async function POST(req: Request) {
   try {
@@ -16,25 +16,27 @@ export async function POST(req: Request) {
 
     if (ct.includes("multipart/form-data")) {
       const form = await req.formData();
-      if (form.get("mode") === "critique") mode = "critique";
+      // 2) On gère tous les cas
+      const m = String(form.get("mode") ?? "fiche");
+      if (m === "critique") mode = "critique";
+      else if (m === "traduction") mode = "traduction";
+
       title = String(form.get("title") ?? "").trim();
       author = String(form.get("author") ?? "").trim();
 
       const fileBlob = form.get("coverImage");
       if (fileBlob instanceof Blob && fileBlob.size > 0) {
         const buf = await fileBlob.arrayBuffer();
-        // 1) on récupère d’abord le texte brut
-        const extractedText = await extractTextWithOCR(buf);
-        // 2) on loggue sa longueur et son contenu
-        console.log("OCR:", extractedText.length, extractedText);
-        // 3) on nettoie (trim) pour la suite
-        inputText = extractedText.trim();
+        inputText = (await extractTextWithOCR(buf)).trim();
       } else {
         inputText = String(form.get("textSource") ?? "").trim();
       }
     } else {
       const json = await req.json();
-      mode = json.mode === "critique" ? "critique" : "fiche";
+      const m = String(json.mode ?? "fiche");
+      if (m === "critique") mode = "critique";
+      else if (m === "traduction") mode = "traduction";
+
       title = (typeof json.title === "string" ? json.title : "").trim();
       author = (typeof json.author === "string" ? json.author : "").trim();
       inputText = (typeof json.input === "string" ? json.input : "").trim();
@@ -93,16 +95,22 @@ export async function POST(req: Request) {
     const content = data.choices?.[0]?.message?.content ?? "";
     let fiche = "",
       meta = "",
-      newsletter = "";
+      newsletter = "",
+      translation = "";
+
     if (mode === "critique") {
       fiche = content.trim();
+    } else if (mode === "traduction") {
+      // 3) On remplit uniquement translation
+      translation = content.trim();
     } else {
+      // cas "fiche"
       fiche = content.match(/FICHE:\s*([\s\S]*?)META:/)?.[1].trim() ?? "";
       meta = content.match(/META:\s*([\s\S]*?)NEWSLETTER:/)?.[1].trim() ?? "";
       newsletter = content.match(/NEWSLETTER:\s*([\s\S]*)/)?.[1].trim() ?? "";
     }
 
-    return NextResponse.json({ fiche, meta, newsletter });
+    return NextResponse.json({ fiche, meta, newsletter, translation });
   } catch (err: unknown) {
     // on renvoie toujours du JSON, jamais du HTML
     const message =

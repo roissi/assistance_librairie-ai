@@ -6,16 +6,10 @@ import { Button } from "@/components/ui/button";
 import ResultCard from "@/components/ResultCard";
 import { inter } from "@/lib/fonts";
 import { compressImage } from "@/lib/image";
-import {
-  ArrowRight,
-  AlertCircle,
-  ScanEye,
-  Download,
-  X as CloseIcon,
-} from "lucide-react";
+import { AlertCircle, ScanEye, Download, X as CloseIcon } from "lucide-react";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 
-type GenerationMode = "fiche" | "critique";
+type GenerationMode = "fiche" | "critique" | "traduction";
 
 export default function HomePage() {
   const [input, setInput] = useState("");
@@ -24,12 +18,16 @@ export default function HomePage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState("");
   const [mode, setMode] = useState<GenerationMode>("fiche");
-  const [loading, setLoading] = useState(false);
+  const [loadingGenerate, setLoadingGenerate] = useState(false);
+  const [loadingCover, setLoadingCover] = useState(false);
   const [copied, setCopied] = useState<Record<string, boolean>>({});
+  const [isbn, setIsbn] = useState<string>("");
+  const [fetchedCover, setFetchedCover] = useState<string>("");
   const [result, setResult] = useState<null | {
-    fiche: string;
-    meta: string;
-    newsletter: string;
+    fiche?: string;
+    meta?: string;
+    newsletter?: string;
+    translation?: string;
   }>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,7 +50,13 @@ export default function HomePage() {
   useEffect(() => {
     if (isCapturing) {
       navigator.mediaDevices
-        .getUserMedia({ video: true })
+        .getUserMedia({
+          video: {
+            // que des ideal, pas de min
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+        })
         .then((stream) => {
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
@@ -75,7 +79,7 @@ export default function HomePage() {
 
   // helper de compression + setImageFile
   async function compressAndSet(file: File) {
-    setLoading(true);
+    setLoadingGenerate(true);
     try {
       // on passe uniquement la dimension max, plus de quality pour le PNG
       const compressed = await compressImage(file, 1500);
@@ -84,7 +88,7 @@ export default function HomePage() {
       // en cas d'échec, on conserve l'original
       setImageFile(file);
     } finally {
-      setLoading(false);
+      setLoadingGenerate(false);
       setIsCapturing(false);
     }
   }
@@ -115,7 +119,7 @@ export default function HomePage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    setLoading(true);
+    setLoadingGenerate(true);
 
     const form = new FormData();
     form.append("mode", mode);
@@ -128,16 +132,43 @@ export default function HomePage() {
       const res = await fetch("/api/generate/", { method: "POST", body: form });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erreur inconnue");
-      setResult({
-        fiche: data.fiche,
-        meta: data.meta,
-        newsletter: data.newsletter,
-      });
+
+      // on gère chaque mode séparément
+      if (mode === "traduction") {
+        setResult({ translation: data.translation });
+      } else if (mode === "critique") {
+        setResult({ fiche: data.fiche });
+      } else {
+        setResult({
+          fiche: data.fiche,
+          meta: data.meta,
+          newsletter: data.newsletter,
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setLoading(false);
+      setLoadingGenerate(false);
       setCopied({});
+    }
+  };
+
+  // fonction de fetch
+  const fetchCover = async () => {
+    const cleanIsbn = isbn.replace(/[^0-9Xx]/g, "").toUpperCase();
+    if (cleanIsbn.length < 10)
+      return setError("Veuillez saisir un ISBN valide");
+    setError(null);
+    setLoadingCover(true);
+    try {
+      const res = await fetch(`/api/cover?isbn=${cleanIsbn}`);
+      const json = await res.json();
+      if (res.ok && json.thumbnail) setFetchedCover(json.thumbnail);
+      else setError("Couverture introuvable");
+    } catch {
+      setError("Erreur de recherche de couverture");
+    } finally {
+      setLoadingCover(false);
     }
   };
 
@@ -162,8 +193,8 @@ export default function HomePage() {
       >
         {/* Mode de génération */}
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
-            Choisissez un type de génération
+          <label className="block text-md font-medium text-gray-700">
+            Choisir un type de génération
           </label>
           <CustomSelect
             value={mode}
@@ -171,6 +202,7 @@ export default function HomePage() {
             options={[
               { value: "fiche", label: "Fiche produit + SEO + newsletter" },
               { value: "critique", label: "Texte critique littéraire" },
+              { value: "traduction", label: "Version anglaise du texte" },
             ]}
             placeholder="Choisissez un mode"
           />
@@ -179,8 +211,8 @@ export default function HomePage() {
         {/* Auteur & Titre */}
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Indiquez le nom de l&apos;auteur{" "}
+            <label className="block text-md font-medium text-gray-700">
+              Indiquer le nom de l&apos;auteur{" "}
               <span className="text-[#9542e3]">*</span>
             </label>
             <input
@@ -191,8 +223,8 @@ export default function HomePage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Indiquez le titre du livre{" "}
+            <label className="block text-md font-medium text-gray-700">
+              Indiquer le titre du livre{" "}
               <span className="text-[#9542e3]">*</span>
             </label>
             <input
@@ -204,31 +236,36 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Légende champs obligatoires */}
-        <p className="text-sm text-[#9542e3]">* Champs obligatoires</p>
-
         {/* Option 1 : Texte */}
         <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-            <ArrowRight className="w-6 h-6 text-gray-700" />
-            OPTION 1 : Insérez le texte source (laisser vide si photo)
-          </label>
+          <div className="flex flex-col items-center sm:flex-row sm:items-center gap-2">
+            <span className="inline-block bg-[#9542e3] text-white px-6 sm:px-3 py-1 rounded-full text-md font-medium">
+              Option 1
+            </span>
+            <span className="text-gray-700">
+              Insérer le texte source (laisser cet espace vide si photo)
+            </span>
+          </div>
           <textarea
             rows={4}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             className="w-full p-2 mt-1 rounded-md border bg-white disabled:bg-gray-100"
-            placeholder="Collez ici le texte de la 4ᵉ de couverture"
+            placeholder="Collez ou recopiez ici le texte de la 4ᵉ de couverture"
             disabled={!!imageFile}
           />
         </div>
 
         {/* Option 2 : Photo */}
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-            <ArrowRight className="w-6 h-6 text-gray-700" />
-            OPTION 2 : Photo de la 4ᵉ de couverture
-          </label>
+        <div className="space-y-2 mt-6">
+          <div className="flex flex-col items-center sm:flex-row sm:items-center gap-2">
+            <span className="inline-block bg-[#9542e3] text-white px-6 sm:px-3 py-1 rounded-full text-md font-medium">
+              Option 2
+            </span>
+            <span className="text-gray-700">
+              Prendre ou importer une photo de la 4ᵉ de couverture
+            </span>
+          </div>
 
           <div className="flex flex-col md:flex-row gap-2">
             {/* Mobile: input natif */}
@@ -237,7 +274,7 @@ export default function HomePage() {
               className="block md:hidden w-full h-10 flex items-center justify-center gap-1 px-4 bg-white border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50 text-gray-700"
             >
               <ScanEye className="mr-1 h-5 w-5 text-[#9542e3] animate-pulse" />
-              Prenez une photo
+              Prendre une photo
             </label>
             <input
               id="camera-input"
@@ -258,22 +295,29 @@ export default function HomePage() {
               <Button
                 type="button"
                 variant="outline"
-                className="hidden md:flex md:flex-1 h-10 items-center justify-center gap-1 text-sm"
+                className="hidden md:flex md:flex-1 h-10 items-center justify-center gap-1 text-md"
                 onClick={() => {
                   setError(null);
                   setIsCapturing(true);
                 }}
               >
                 <ScanEye className="mr-1 h-5 w-5 text-[#9542e3] animate-pulse" />
-                Prenez une photo
+                Prendre une photo
               </Button>
             )}
             {isCapturing && (
-              <div className="hidden md:flex flex-col items-center gap-2">
-                <video ref={videoRef} className="w-48 h-64 bg-black rounded" />
+              <div className="hidden md:flex flex-col items-center gap-4">
+                {/* container responsive + ratio 4:3 */}
+                <div className="bg-black rounded overflow-hidden w-full max-w-lg aspect-[4/3]">
+                  <video
+                    ref={videoRef}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
                 <div className="flex gap-2">
                   <Button
                     type="button"
+                    variant="default"
                     className="h-10"
                     onClick={handleCapture}
                   >
@@ -281,7 +325,7 @@ export default function HomePage() {
                   </Button>
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     className="h-10"
                     onClick={() => setIsCapturing(false)}
                   >
@@ -297,7 +341,7 @@ export default function HomePage() {
               className="w-full md:flex-1 h-10 flex items-center justify-center gap-1 px-4 bg-white border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50 text-gray-700"
             >
               <Download className="mr-1 h-5 w-5 text-[#9542e3] animate-pulse" />
-              Importez une photo
+              Importer une photo
             </label>
             <input
               id="cover-input"
@@ -349,54 +393,116 @@ export default function HomePage() {
           </div>
         )}
 
+        {/* Légende des champs obligatoires */}
+        <p className="text-sm text-[#9542e3]">* Champs obligatoires</p>
+
         {/* Bouton Générer */}
         <Button
           type="submit"
-          className="w-full bg-[#a15be3] hover:bg-[#9542e3] text-white text-sm transition-colors duration-200"
-          disabled={loading}
+          className="w-full bg-[#a15be3] hover:bg-[#9542e3] text-white text-md transition-colors duration-200"
+          disabled={loadingGenerate}
         >
-          {loading ? "Génération en cours…" : "Générez les textes attendus"}
+          {loadingGenerate
+            ? "Génération en cours…"
+            : "Générer les textes attendus"}
         </Button>
       </form>
 
       {/* Résultats GPT */}
       {result && (
         <section className="space-y-6 mb-10">
-          {mode === "fiche" ? (
+          {mode === "fiche" && (
             <>
               <ResultCard
                 id="fiche"
                 title="Fiche produit"
-                text={result.fiche}
+                text={result.fiche!}
                 copied={copied}
                 onCopy={copyToClipboard}
               />
               <ResultCard
                 id="meta"
                 title="Meta description SEO"
-                text={result.meta}
+                text={result.meta!}
                 copied={copied}
                 onCopy={copyToClipboard}
               />
               <ResultCard
                 id="newsletter"
                 title="Texte newsletter"
-                text={result.newsletter}
+                text={result.newsletter!}
                 copied={copied}
                 onCopy={copyToClipboard}
               />
             </>
-          ) : (
+          )}
+          {mode === "critique" && (
             <ResultCard
               id="critique"
               title="Texte critique"
-              text={result.fiche}
+              text={result.fiche!}
+              copied={copied}
+              onCopy={copyToClipboard}
+            />
+          )}
+          {mode === "traduction" && (
+            <ResultCard
+              id="translation"
+              title="Version anglaise"
+              text={result.translation!}
               copied={copied}
               onCopy={copyToClipboard}
             />
           )}
         </section>
       )}
+
+      {/* ----- Section Bonus : Recherche de couverture ----- */}
+      <section className="mt-12 bg-white/50 p-6 rounded-2xl shadow-sm backdrop-blur-sm">
+        <h2 className="flex items-center gap-2 text-md font-medium text-gray-700 mb-2">
+          Bonus : Récupérer la couverture du livre via son ISBN
+        </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <input
+            type="text"
+            placeholder="Taper ici l'ISBN (10 ou 13 chiffres)"
+            value={isbn}
+            onChange={(e) => setIsbn(e.target.value)}
+            className="w-full p-2 mt-1 rounded-md border border-gray-300 bg-white focus:ring focus:ring-pink-200"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10"
+            onClick={fetchCover}
+            disabled={loadingCover || isbn.trim() === ""}
+          >
+            {loadingCover ? "Recherche…" : "Recherche"}
+          </Button>
+        </div>
+        {error && <p className="mt-2 text-red-600">{error}</p>}
+        {fetchedCover && (
+          <div className="mt-6 text-center">
+            <Image
+              src={fetchedCover}
+              alt="Jaquette trouvée"
+              width={300}
+              height={450}
+              className="mx-auto rounded shadow-lg"
+            />
+            <div className="mt-4">
+              <a
+                href={fetchedCover}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline text-sm"
+              >
+                Téléchargez l’image en haute qualité
+              </a>
+            </div>
+          </div>
+        )}
+      </section>
     </main>
   );
 }
