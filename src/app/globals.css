@@ -128,3 +128,18 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  @keyframes fadeColor {
+    from {
+      color: #9542e3;
+    }
+    to {
+      color: #1f2937; /* équivalent text-gray-800 */
+    }
+  }
+
+  .animate-fadeColor {
+    animation: fadeColor 10s ease-in-out forwards;
+  }
+}

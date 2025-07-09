@@ -6,7 +6,13 @@ import { Button } from "@/components/ui/button";
 import ResultCard from "@/components/ResultCard";
 import { inter } from "@/lib/fonts";
 import { compressImage } from "@/lib/image";
-import { AlertCircle, ScanEye, Download, X as CloseIcon } from "lucide-react";
+import {
+  AlertCircle,
+  ChevronRight,
+  ScanEye,
+  Download,
+  X as CloseIcon,
+} from "lucide-react";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 
 type GenerationMode = "fiche" | "critique" | "traduction";
@@ -29,7 +35,8 @@ export default function HomePage() {
     newsletter?: string;
     translation?: string;
   }>(null);
-  const [error, setError] = useState<string | null>(null);
+const [errorGen,   setErrorGen]   = useState<string | null>(null);
+const [errorCover, setErrorCover] = useState<string | null>(null);
 
   // pour la capture webcam desktop
   const [isCapturing, setIsCapturing] = useState(false);
@@ -64,7 +71,7 @@ export default function HomePage() {
           }
         })
         .catch(() =>
-          setError(
+          setErrorGen(
             "Impossible d'accéder à la caméra, vérifiez vos permissions.",
           ),
         );
@@ -118,7 +125,7 @@ export default function HomePage() {
   // soumission du formulaire
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setError(null);
+    setErrorGen(null);
     setLoadingGenerate(true);
 
     const form = new FormData();
@@ -146,7 +153,7 @@ export default function HomePage() {
         });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setErrorGen(err instanceof Error ? err.message : String(err));
     } finally {
       setLoadingGenerate(false);
       setCopied({});
@@ -156,17 +163,19 @@ export default function HomePage() {
   // fonction de fetch
   const fetchCover = async () => {
     const cleanIsbn = isbn.replace(/[^0-9Xx]/g, "").toUpperCase();
-    if (cleanIsbn.length < 10)
-      return setError("Veuillez saisir un ISBN valide");
-    setError(null);
+    if (cleanIsbn.length < 10) {
+setErrorCover("Veuillez saisir un ISBN valide");
+return;
+}
+    setErrorCover(null);
     setLoadingCover(true);
     try {
       const res = await fetch(`/api/cover?isbn=${cleanIsbn}`);
       const json = await res.json();
       if (res.ok && json.thumbnail) setFetchedCover(json.thumbnail);
-      else setError("Couverture introuvable");
+      else setErrorCover("Couverture introuvable");
     } catch {
-      setError("Erreur de recherche de couverture");
+      setErrorCover("Erreur de recherche de couverture");
     } finally {
       setLoadingCover(false);
     }
@@ -184,7 +193,8 @@ export default function HomePage() {
       <h1
         className={`${inter.className} text-4xl font-bold text-center mb-10 text-gray-800`}
       >
-        Votre générateur de contenus automatisé
+        Votre <span className="inline-block animate-fadeColor">générateur</span>{" "}
+        de contenus automatisé
       </h1>
 
       <form
@@ -193,7 +203,8 @@ export default function HomePage() {
       >
         {/* Mode de génération */}
         <div className="space-y-2">
-          <label className="block text-md font-medium text-gray-700">
+          <label className="flex items-center gap-1 text-md font-medium text-gray-700">
+            <ChevronRight className="w-5 h-5 text-gray-700" />
             Choisir un type de génération
           </label>
           <CustomSelect
@@ -238,28 +249,30 @@ export default function HomePage() {
 
         {/* Option 1 : Texte */}
         <div className="space-y-2">
+          <p className="flex items-center gap-1 mb-5 text-md font-medium text-gray-700">
+            <ChevronRight className="w-5 h-5 text-gray-700" />
+            Choisir l&apos;une des 2 options
+          </p>
           <div className="flex flex-col items-center sm:flex-row sm:items-center gap-2">
-            <span className="inline-block bg-[#9542e3] text-white px-6 sm:px-3 py-1 rounded-full text-md font-medium">
+            <span className="inline-block border-2 border-[#9542e3] text-[#9542e3] px-4 sm:px-2 py-0.5 rounded-md text-md font-medium">
               Option 1
             </span>
-            <span className="text-gray-700">
-              Insérer le texte source (laisser cet espace vide si photo)
-            </span>
+            <span className="text-gray-700">Insérer le texte source</span>
           </div>
           <textarea
             rows={4}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            className="w-full p-2 mt-1 rounded-md border bg-white disabled:bg-gray-100"
-            placeholder="Collez ou recopiez ici le texte de la 4ᵉ de couverture"
+            className="w-full p-2 rounded-md border bg-white disabled:bg-gray-100"
+            placeholder="Coller ou recopier ici le texte de la 4ᵉ de couverture"
             disabled={!!imageFile}
           />
         </div>
 
         {/* Option 2 : Photo */}
-        <div className="space-y-2 mt-6">
+        <div className="space-y-2">
           <div className="flex flex-col items-center sm:flex-row sm:items-center gap-2">
-            <span className="inline-block bg-[#9542e3] text-white px-6 sm:px-3 py-1 rounded-full text-md font-medium">
+            <span className="inline-block border-2 border-[#9542e3] text-[#9542e3] px-4 sm:px-2 py-0.5 rounded-md text-md font-medium">
               Option 2
             </span>
             <span className="text-gray-700">
@@ -295,9 +308,9 @@ export default function HomePage() {
               <Button
                 type="button"
                 variant="outline"
-                className="hidden md:flex md:flex-1 h-10 items-center justify-center gap-1 text-md"
+                className="hidden md:flex md:flex-1 h-10 items-center justify-center gap-1 text-md text-gray-700"
                 onClick={() => {
-                  setError(null);
+                  setErrorGen(null);
                   setIsCapturing(true);
                 }}
               >
@@ -305,8 +318,14 @@ export default function HomePage() {
                 Prendre une photo
               </Button>
             )}
+
             {isCapturing && (
               <div className="hidden md:flex flex-col items-center gap-4">
+                {/* Conseils d’utilisation */}
+                <p className="text-sm text-[#9542e3] animate-pulse">
+                  Veuillez approcher le livre de la caméra et vous assurer que
+                  le texte soit bien lisible.
+                </p>
                 {/* container responsive + ratio 4:3 */}
                 <div className="bg-black rounded overflow-hidden w-full max-w-lg aspect-[4/3]">
                   <video
@@ -385,11 +404,11 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Message d’erreur API */}
-        {error && (
+        {/* Message d’erreur Gen API */}
+        {errorGen && (
           <div className="flex items-start gap-2 rounded-md border border-red-300 bg-red-50 p-4">
             <AlertCircle className="mt-0.5 h-5 w-5 text-red-600" />
-            <div className="flex-1 text-sm text-red-800">{error}</div>
+            <div className="flex-1 text-sm text-red-800">{errorGen}</div>
           </div>
         )}
 
@@ -410,7 +429,7 @@ export default function HomePage() {
 
       {/* Résultats GPT */}
       {result && (
-        <section className="space-y-6 mb-10">
+        <section className="space-y-6 mt-6 mb-10">
           {mode === "fiche" && (
             <>
               <ResultCard
@@ -458,9 +477,9 @@ export default function HomePage() {
       )}
 
       {/* ----- Section Bonus : Recherche de couverture ----- */}
-      <section className="mt-12 bg-white/50 p-6 rounded-2xl shadow-sm backdrop-blur-sm">
+      <section className="mt-12 bg-white/50 border-2 border-[#9542e3] p-6 rounded-2xl shadow-sm backdrop-blur-sm">
         <h2 className="flex items-center gap-2 text-md font-medium text-gray-700 mb-2">
-          Bonus : Récupérer la couverture du livre via son ISBN
+          Récupérer l&apos;image de la couverture de l&apos;ouvrage
         </h2>
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <input
@@ -480,7 +499,12 @@ export default function HomePage() {
             {loadingCover ? "Recherche…" : "Recherche"}
           </Button>
         </div>
-        {error && <p className="mt-2 text-red-600">{error}</p>}
+{errorCover && (
+<div className="flex items-start gap-2 rounded-md border border-red-300 bg-red-50 p-4 mt-2">
+<AlertCircle className="mt-0.5 h-5 w-5 text-red-600" />
+<div className="flex-1 text-sm text-red-800">{errorCover}</div>
+</div>
+)}
         {fetchedCover && (
           <div className="mt-6 text-center">
             <Image
@@ -497,7 +521,7 @@ export default function HomePage() {
                 rel="noopener noreferrer"
                 className="underline text-sm"
               >
-                Téléchargez l’image en haute qualité
+                Téléchargez l&apos;image en haute qualité
               </a>
             </div>
           </div>

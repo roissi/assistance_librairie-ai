@@ -79,13 +79,15 @@ Réponds uniquement par le texte critique, sans titre ni balise.
 
   if (type === "traduction") {
     return `
-Traduis le texte suivant en anglais de manière fluide et fidèle.
+Tu es traducteur littéraire professionnel.  
+Traduis le texte suivant du français vers l'anglais, avec un style fluide, fidèle et naturel.  
+Respecte le ton, la syntaxe et les images de l'original.
 
 Consignes :
-- Ne commente rien, ne reformule rien.
-- Ne saute **aucune ligne**.
-- Retourne la traduction en **un seul bloc continu**, sans paragraphe, sans saut de ligne.
-- Garde la ponctuation et les majuscules si nécessaire, mais pas les retours à la ligne d’origine.
+- Ne commente pas, ne reformule pas.
+- Ne saute pas de ligne.  
+- Retourne uniquement la traduction, en un seul bloc.  
+- Aucune mention du texte source.
 
 Texte à traduire :
 """
