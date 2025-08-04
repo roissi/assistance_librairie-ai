@@ -32,7 +32,7 @@ export default function RootLayout({
             >
               bethere.cyrildegraeve.dev
             </a>
-            {" – "}06 76 04 54 31
+            {" – "}+33 (0)6 76 04 54 31
           </span>
         </footer>
       </body>

@@ -1,5 +1,5 @@
 export function getPrompt(
-  type: "fiche" | "critique",
+  type: "fiche" | "critique" | "traduction",
   input: string,
   title: string,
   author: string,
@@ -13,30 +13,32 @@ Tu es un assistant spécialisé en librairie indépendante.
 
 À partir du texte fourni ci-dessous, génère trois contenus distincts, chacun avec un ton adapté au canal concerné :
 
-1. Fiche produit pour un site de librairie :
-- Longueur : 5 à 7 lignes.
-- Objectif : donner envie sans survendre.
-- Style : sobre, structuré, informatif. Pas de formules publicitaires. Pas d’injonctions. Pas de “Découvrez” ou “Plongez dans” en début de texte.
-- Contenu : présenter le cœur du livre (sujet, style, époque, ambiance, genre…).
+1. **FICHE PRODUIT**  
+Format : 7 à 10 lignes  
+But : présenter le livre de façon informative, pour un site e-commerce de librairie.  
+Ton : sobre, précis, sans formules publicitaires ni injonctions ("découvrez", "plongez", etc.).  
+Contenu : indique le genre, le sujet principal, la tonalité, l’époque, les personnages ou thématiques abordées. Peut faire allusion au style d’écriture.
 
-2. Meta description SEO (max. 160 caractères) :
-- Objectif : améliorer le référencement naturel.
-- Contenu : informatif, clair, avec mots-clés pertinents.
-- Ton : neutre et descriptif. Pas d’injonction ou de tournure promotionnelle. Pas de “Découvrez” ou “Plongez dans” en début de texte.
+2. **META DESCRIPTION SEO**  
+Format : 160 caractères maximum  
+But : améliorer le référencement naturel.  
+Ton : descriptif, neutre, sans accroche publicitaire.  
+Contenu : synthétise le sujet, l’auteur et le titre avec des mots-clés utiles pour une recherche Google.
 
-3. Texte pour une newsletter annonçant le livre :
-- Ton : professionnel, sobre, informatif.
-- Peut être utilisé tel quel dans un email.
-- Ne commence jamais par “Découvrez”, “Plongez dans” ou toute autre formule d’accroche publicitaire.
+3. **TEXTE POUR NEWSLETTER**  
+Format : 5 à 7 lignes  
+But : annoncer le livre dans une newsletter professionnelle.  
+Ton : informatif, élégant, fluide.  
+Consigne : n’utilise jamais de formule publicitaire type “à ne pas manquer” ou “notre coup de cœur”.
 
-L'auteur du livre est ${bookAuthor}.
-Le livre s'intitule ${bookTitle}.
+Le livre s’intitule : **${bookTitle}**  
+Son auteur est : **${bookAuthor}**
 
 Texte source à analyser :
 """  
 ${input}
 """
-Réponds dans le format suivant :
+Réponds dans ce format précis :
 
 FICHE:
 [contenu]
@@ -51,22 +53,21 @@ NEWSLETTER:
 
   if (type === "critique") {
     return `
-Tu es libraire dans une librairie indépendante à Paris, passionné et grand connaisseur de littérature.
+Tu es libraire dans une librairie indépendante à Paris. Tu es passionné de littérature contemporaine et ton avis compte.
 
-À partir du texte fourni ci-dessous (4e de couverture ou résumé), rédige un **texte critique et subjectif** destiné à figurer sur un blog, une newsletter ou une page d’accueil. 
+À partir du texte fourni (4e de couverture ou résumé), rédige une **note critique personnelle**, destinée à figurer dans un blog, une newsletter ou une page d’accueil de librairie.
 
-L'auteur du livre est ${bookAuthor}.
-Le livre s'intitule ${bookTitle}.
+Le livre s’intitule : **${bookTitle}**  
+Son auteur est : **${bookAuthor}**
 
 Consignes :
-- Longueur : **strictement limitée à 700 caractères maximum**, espaces compris.
-- Structure : **1 à 2 paragraphes maximum** (sauter une ligne entre les deux).
-- Si plus de deux paragraphes ou si trop long : **arrête immédiatement le texte**.
-- Ton : personnel, impliqué, fluide.
-- Style : exigeant, léché.
-- Utilise le **"nous" ou "je"** si pertinent.
-- Mentionne : le sujet du livre, la tonalité, les points marquants, ce qu’il évoque ou déclenche.
-- Tu peux faire un lien avec d’autres œuvres, époques, auteurs si pertinent.
+- Format : **maximum 700 caractères (espaces compris)**.
+- Structure : **1 ou 2 paragraphes**, bien aérés.
+- Ton : subjectif, engagé, littéraire.
+- Style : concis, élégant, sans effets faciles.
+- Utilisation du "je" ou "nous" encouragée si naturel.
+- Intègre : le sujet du livre, ce qu’il évoque, son ambiance, son originalité. Tu peux établir un lien avec d’autres œuvres ou auteurs si pertinent.
+- Ne dépasse pas les 700 caractères sous peine d’interruption.
 
 Texte source :
 """
@@ -76,5 +77,23 @@ Réponds uniquement par le texte critique, sans titre ni balise.
     `;
   }
 
+  if (type === "traduction") {
+    return `
+Tu es traducteur littéraire professionnel.  
+Traduis le texte suivant du français vers l'anglais, avec un style fluide, fidèle et naturel.  
+Respecte le ton, la syntaxe et les images de l'original.
+
+Consignes :
+- Ne commente pas, ne reformule pas.
+- Ne saute pas de ligne.  
+- Retourne uniquement la traduction, en un seul bloc.  
+- Aucune mention du texte source.
+
+Texte à traduire :
+"""
+${input}
+"""
+`.trim();
+  }
   return "";
 }

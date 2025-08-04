@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
-import { ChevronDown } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SelectProps {
@@ -16,49 +16,45 @@ export const CustomSelect = ({
   value,
   onChange,
   options,
-  placeholder = "Select...",
+  placeholder = "Select…",
   className,
 }: SelectProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [focusedIndex, setFocusedIndex] = useState<number>(-1);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
   const selectRef = useRef<HTMLDivElement>(null);
 
-  // Ferme quand on clique en dehors
+  // Fermer le menu au clic hors composant
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        selectRef.current &&
-        !selectRef.current.contains(event.target as Node)
-      ) {
+    const onClickOutside = (e: MouseEvent) => {
+      if (selectRef.current && !selectRef.current.contains(e.target as Node)) {
         setIsOpen(false);
         setFocusedIndex(-1);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
 
-  const selectedOption = options.find((opt) => opt.value === value);
+  const selectedOption = options.find((o) => o.value === value);
 
   // Gestion clavier
-  const onKeyDown = (e: KeyboardEvent) => {
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (!isOpen) {
-      if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
+      if (["Enter", " ", "ArrowDown"].includes(e.key)) {
         e.preventDefault();
         setIsOpen(true);
-        setFocusedIndex(0);
+        setFocusedIndex(options.findIndex((o) => o.value === value) || 0);
       }
       return;
     }
-
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault();
-        setFocusedIndex((idx) => (idx < options.length - 1 ? idx + 1 : 0));
+        setFocusedIndex((i) => (i < options.length - 1 ? i + 1 : 0));
         break;
       case "ArrowUp":
         e.preventDefault();
-        setFocusedIndex((idx) => (idx > 0 ? idx - 1 : options.length - 1));
+        setFocusedIndex((i) => (i > 0 ? i - 1 : options.length - 1));
         break;
       case "Enter":
       case " ":
@@ -77,7 +73,7 @@ export const CustomSelect = ({
     }
   };
 
-  // Scroll vers l’item focus si besoin
+  // Scroll vers l’item focus
   useEffect(() => {
     if (isOpen && focusedIndex >= 0) {
       const container = selectRef.current?.querySelector(
@@ -86,7 +82,7 @@ export const CustomSelect = ({
       const item = container?.children[focusedIndex] as HTMLDivElement;
       item?.scrollIntoView({ block: "nearest" });
     }
-  }, [focusedIndex, isOpen]);
+  }, [isOpen, focusedIndex]);
 
   return (
     <div
@@ -99,16 +95,21 @@ export const CustomSelect = ({
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         className={cn(
-          "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm",
+          "flex h-10 w-full items-center justify-between rounded-md border border-input bg-white px-3 text-sm",
           "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
           isOpen && "ring-2 ring-offset-1 ring-primary",
         )}
         onClick={() => {
-          setIsOpen((o) => !o);
+          setIsOpen((open) => !open);
           setFocusedIndex(options.findIndex((o) => o.value === value));
         }}
       >
-        <span className="truncate">
+        <span
+          className={cn(
+            selectedOption ? "text-gray-900" : "text-gray-500",
+            "truncate",
+          )}
+        >
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <ChevronDown
@@ -126,31 +127,39 @@ export const CustomSelect = ({
             focusedIndex >= 0 ? `option-${focusedIndex}` : undefined
           }
           tabIndex={-1}
-          className="custom-select-options absolute z-50 mt-1 w-full overflow-hidden rounded-md border border-input bg-popover shadow-lg transition ease-out duration-100"
+          className="custom-select-options absolute z-50 mt-1 w-full overflow-hidden rounded-md border border-input bg-white shadow-lg"
         >
           <div className="max-h-60 overflow-y-auto p-1">
-            {options.map((option, idx) => (
-              <div
-                id={`option-${idx}`}
-                key={option.value}
-                role="option"
-                aria-selected={value === option.value}
-                className={cn(
-                  "relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none",
-                  "hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-                  value === option.value && "bg-accent text-accent-foreground",
-                  idx === focusedIndex && "bg-primary/10",
-                )}
-                onClick={() => {
-                  onChange(option.value);
-                  setIsOpen(false);
-                  setFocusedIndex(-1);
-                }}
-                onMouseEnter={() => setFocusedIndex(idx)}
-              >
-                {option.label}
-              </div>
-            ))}
+            {options.map((opt, idx) => {
+              const isSelected = opt.value === value;
+              const isFocused = idx === focusedIndex;
+              return (
+                <div
+                  id={`option-${idx}`}
+                  key={opt.value}
+                  role="option"
+                  aria-selected={isSelected}
+                  className={cn(
+                    "relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm",
+                    "hover:bg-gray-100",
+                    isFocused && "bg-gray-100",
+                  )}
+                  onClick={() => {
+                    onChange(opt.value);
+                    setIsOpen(false);
+                    setFocusedIndex(-1);
+                  }}
+                  onMouseEnter={() => setFocusedIndex(idx)}
+                >
+                  {isSelected && (
+                    <Check className="absolute left-2 h-4 w-4 text-[#9542e3]" />
+                  )}
+                  <span className={isSelected ? "font-medium" : ""}>
+                    {opt.label}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
