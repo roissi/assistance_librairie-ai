@@ -194,7 +194,7 @@ return;
         className={`${inter.className} text-4xl font-bold text-center mb-10 text-gray-800`}
       >
         Votre <span className="inline-block animate-fadeColor">générateur</span>{" "}
-        de contenus automatisé ++
+        de contenus automatisé
       </h1>
 
       <form
