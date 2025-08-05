@@ -7,7 +7,6 @@ type GenerationMode = "fiche" | "critique" | "traduction";
 
 export async function POST(req: Request) {
   try {
-    // --- Extraction des champs (form-data ou JSON) ---
     let inputText = "";
     let mode: GenerationMode = "fiche";
     let title = "";
@@ -16,7 +15,6 @@ export async function POST(req: Request) {
 
     if (ct.includes("multipart/form-data")) {
       const form = await req.formData();
-      // 2) On gère tous les cas
       const m = String(form.get("mode") ?? "fiche");
       if (m === "critique") mode = "critique";
       else if (m === "traduction") mode = "traduction";
@@ -42,7 +40,6 @@ export async function POST(req: Request) {
       inputText = (typeof json.input === "string" ? json.input : "").trim();
     }
 
-    // --- Validations ---
     if (!author) {
       return NextResponse.json(
         { error: "Vous devez impérativement indiquer le nom de l'auteur." },
@@ -68,7 +65,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Clé API manquante" }, { status: 500 });
     }
 
-    // --- Appel à l’API OpenAI ---
     const prompt = getPrompt(mode, inputText, title, author);
     const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -91,7 +87,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: errMsg }, { status: 500 });
     }
 
-    // --- Extraction des sections dans la réponse ---
     const content = data.choices?.[0]?.message?.content ?? "";
     let fiche = "",
       meta = "",
@@ -101,10 +96,8 @@ export async function POST(req: Request) {
     if (mode === "critique") {
       fiche = content.trim();
     } else if (mode === "traduction") {
-      // 3) On remplit uniquement translation
       translation = content.trim();
     } else {
-      // cas "fiche"
       fiche = content.match(/FICHE:\s*([\s\S]*?)META:/)?.[1].trim() ?? "";
       meta = content.match(/META:\s*([\s\S]*?)NEWSLETTER:/)?.[1].trim() ?? "";
       newsletter = content.match(/NEWSLETTER:\s*([\s\S]*)/)?.[1].trim() ?? "";
@@ -112,7 +105,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ fiche, meta, newsletter, translation });
   } catch (err: unknown) {
-    // on renvoie toujours du JSON, jamais du HTML
     const message =
       err instanceof Error
         ? err.message

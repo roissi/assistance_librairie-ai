@@ -35,15 +35,13 @@ export default function HomePage() {
     newsletter?: string;
     translation?: string;
   }>(null);
-const [errorGen,   setErrorGen]   = useState<string | null>(null);
-const [errorCover, setErrorCover] = useState<string | null>(null);
+  const [errorGen, setErrorGen] = useState<string | null>(null);
+  const [errorCover, setErrorCover] = useState<string | null>(null);
 
-  // pour la capture webcam desktop
   const [isCapturing, setIsCapturing] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // générer l’aperçu à chaque changement de fichier
   useEffect(() => {
     if (imageFile) {
       const url = URL.createObjectURL(imageFile);
@@ -53,13 +51,11 @@ const [errorCover, setErrorCover] = useState<string | null>(null);
     setImagePreview("");
   }, [imageFile]);
 
-  // démarrer/arrêter la webcam desktop
   useEffect(() => {
     if (isCapturing) {
       navigator.mediaDevices
         .getUserMedia({
           video: {
-            // que des ideal, pas de min
             width: { ideal: 1280 },
             height: { ideal: 720 },
           },
@@ -84,15 +80,12 @@ const [errorCover, setErrorCover] = useState<string | null>(null);
     }
   }, [isCapturing]);
 
-  // helper de compression + setImageFile
   async function compressAndSet(file: File) {
     setLoadingGenerate(true);
     try {
-      // on passe uniquement la dimension max, plus de quality pour le PNG
       const compressed = await compressImage(file, 1500);
       setImageFile(compressed);
     } catch {
-      // en cas d'échec, on conserve l'original
       setImageFile(file);
     } finally {
       setLoadingGenerate(false);
@@ -100,7 +93,6 @@ const [errorCover, setErrorCover] = useState<string | null>(null);
     }
   }
 
-  // capture de la photo (desktop)
   const handleCapture = async () => {
     if (!videoRef.current || !canvasRef.current) return;
     const video = videoRef.current;
@@ -122,7 +114,6 @@ const [errorCover, setErrorCover] = useState<string | null>(null);
     await compressAndSet(rawFile);
   };
 
-  // soumission du formulaire
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setErrorGen(null);
@@ -140,7 +131,6 @@ const [errorCover, setErrorCover] = useState<string | null>(null);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erreur inconnue");
 
-      // on gère chaque mode séparément
       if (mode === "traduction") {
         setResult({ translation: data.translation });
       } else if (mode === "critique") {
@@ -160,13 +150,12 @@ const [errorCover, setErrorCover] = useState<string | null>(null);
     }
   };
 
-  // fonction de fetch
   const fetchCover = async () => {
     const cleanIsbn = isbn.replace(/[^0-9Xx]/g, "").toUpperCase();
     if (cleanIsbn.length < 10) {
-setErrorCover("Veuillez saisir un ISBN valide");
-return;
-}
+      setErrorCover("Veuillez saisir un ISBN valide");
+      return;
+    }
     setErrorCover(null);
     setLoadingCover(true);
     try {
@@ -181,7 +170,6 @@ return;
     }
   };
 
-  // copier dans le presse-papiers
   const copyToClipboard = (key: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopied((prev) => ({ ...prev, [key]: true }));
@@ -201,7 +189,6 @@ return;
         onSubmit={handleSubmit}
         className="space-y-6 bg-white/50 p-6 rounded-2xl shadow-sm backdrop-blur-sm"
       >
-        {/* Mode de génération */}
         <div className="space-y-2">
           <label className="flex items-center gap-1 text-md font-medium text-gray-700">
             <ChevronRight className="w-5 h-5 text-gray-700" />
@@ -219,7 +206,6 @@ return;
           />
         </div>
 
-        {/* Auteur & Titre */}
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <label className="block text-md font-medium text-gray-700">
@@ -326,7 +312,6 @@ return;
                   Veuillez approcher le livre de la caméra et vous assurer que
                   le texte soit bien lisible.
                 </p>
-                {/* container responsive + ratio 4:3 */}
                 <div className="bg-black rounded overflow-hidden w-full max-w-lg aspect-[4/3]">
                   <video
                     ref={videoRef}
@@ -354,7 +339,6 @@ return;
               </div>
             )}
 
-            {/* Import classique */}
             <label
               htmlFor="cover-input"
               className="w-full md:flex-1 h-10 flex items-center justify-center gap-1 px-4 bg-white border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50 text-gray-700"
@@ -379,7 +363,6 @@ return;
           </div>
         </div>
 
-        {/* Aperçu + bouton supprimer */}
         {imagePreview && (
           <div className="mt-4 text-center">
             <div className="relative w-64 h-64 mx-auto">
@@ -404,7 +387,6 @@ return;
           </div>
         )}
 
-        {/* Message d’erreur Gen API */}
         {errorGen && (
           <div className="flex items-start gap-2 rounded-md border border-red-300 bg-red-50 p-4">
             <AlertCircle className="mt-0.5 h-5 w-5 text-red-600" />
@@ -412,10 +394,8 @@ return;
           </div>
         )}
 
-        {/* Légende des champs obligatoires */}
         <p className="text-sm text-[#9542e3]">* Champs obligatoires</p>
 
-        {/* Bouton Générer */}
         <Button
           type="submit"
           className="w-full bg-[#a15be3] hover:bg-[#9542e3] text-white text-md transition-colors duration-200"
@@ -427,7 +407,6 @@ return;
         </Button>
       </form>
 
-      {/* Résultats GPT */}
       {result && (
         <section className="space-y-6 mt-6 mb-10">
           {mode === "fiche" && (
@@ -476,7 +455,6 @@ return;
         </section>
       )}
 
-      {/* ----- Section Bonus : Recherche de couverture ----- */}
       <section className="mt-12 bg-white/50 border-2 border-[#9542e3] p-6 rounded-2xl shadow-sm backdrop-blur-sm">
         <h2 className="flex items-center gap-2 text-md font-medium text-gray-700 mb-2">
           Récupérer l&apos;image de la couverture de l&apos;ouvrage
@@ -499,12 +477,12 @@ return;
             {loadingCover ? "Recherche…" : "Recherche"}
           </Button>
         </div>
-{errorCover && (
-<div className="flex items-start gap-2 rounded-md border border-red-300 bg-red-50 p-4 mt-2">
-<AlertCircle className="mt-0.5 h-5 w-5 text-red-600" />
-<div className="flex-1 text-sm text-red-800">{errorCover}</div>
-</div>
-)}
+        {errorCover && (
+          <div className="flex items-start gap-2 rounded-md border border-red-300 bg-red-50 p-4 mt-2">
+            <AlertCircle className="mt-0.5 h-5 w-5 text-red-600" />
+            <div className="flex-1 text-sm text-red-800">{errorCover}</div>
+          </div>
+        )}
         {fetchedCover && (
           <div className="mt-6 text-center">
             <Image

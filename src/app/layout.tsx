@@ -17,8 +17,6 @@ export default function RootLayout({
       <body className="min-h-screen flex flex-col items-center justify-between bg-gradient-to-b from-[#ede4f7] to-[#fdfcfb] py-10 antialiased text-gray-900">
         {children}
         <footer className="mt-8 text-sm text-gray-600 text-center">
-          {/* Sur mobile, chaque span est un block (nouvelle ligne) et le dash est caché */}
-          {/* À partir de sm (≥640px), on passe en inline et on affiche le dash après 2025 */}
           <span className="block sm:inline">
             © Cyril De Graeve / 2025
             <span className="hidden sm:inline"> – </span>

@@ -23,7 +23,6 @@ export const CustomSelect = ({
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const selectRef = useRef<HTMLDivElement>(null);
 
-  // Fermer le menu au clic hors composant
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
       if (selectRef.current && !selectRef.current.contains(e.target as Node)) {
@@ -37,7 +36,6 @@ export const CustomSelect = ({
 
   const selectedOption = options.find((o) => o.value === value);
 
-  // Gestion clavier
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (!isOpen) {
       if (["Enter", " ", "ArrowDown"].includes(e.key)) {
@@ -73,7 +71,6 @@ export const CustomSelect = ({
     }
   };
 
-  // Scroll vers l’item focus
   useEffect(() => {
     if (isOpen && focusedIndex >= 0) {
       const container = selectRef.current?.querySelector(
