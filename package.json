@@ -37,5 +37,11 @@
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.4",
     "typescript": "^5"
+  },
+  "pnpm": {
+    "overrides": {
+      "@next/swc-linux-x64-gnu": "15.5.11",
+      "@next/swc-linux-x64-musl": "15.5.11"
+    }
   }
 }
