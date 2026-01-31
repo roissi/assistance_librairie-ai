@@ -18,7 +18,7 @@ export default function RootLayout({
         {children}
         <footer className="mt-8 text-sm text-gray-600 text-center">
           <span className="block sm:inline">
-            © Cyril De Graeve / 2025
+            © Cyril De Graeve / 2026
             <span className="hidden sm:inline"> – </span>
           </span>
           <span className="block sm:inline">

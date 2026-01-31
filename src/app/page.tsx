@@ -17,6 +17,56 @@ import { CustomSelect } from "@/components/ui/CustomSelect";
 
 type GenerationMode = "fiche" | "critique" | "traduction";
 
+/**
+ * Garde-fous UI (cohérents avec le serveur)
+ */
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+type AllowedImageType = (typeof ALLOWED_IMAGE_TYPES)[number];
+
+const MAX_UPLOAD_MB = 6; // limite AVANT compression (anti-abus client)
+const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
+
+const MAX_TITLE_LEN = 140;
+const MAX_AUTHOR_LEN = 120;
+const MAX_INPUT_LEN = 9000; // texte source max (anti prompt énorme)
+
+function clampText(s: string, max: number) {
+  const v = (s ?? "").trim();
+  return v.length > max ? v.slice(0, max) : v;
+}
+
+function humanizeImageError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+
+  // Codes venant de /lib/image.ts
+  switch (msg) {
+    case "IMAGE_MISSING":
+      return "Aucun fichier image n’a été détecté.";
+    case "IMAGE_TYPE_NOT_ALLOWED":
+      return "Format non autorisé. Formats acceptés : JPG / PNG / WEBP.";
+    case "IMAGE_EMPTY":
+      return "Le fichier image est vide.";
+    case "IMAGE_TOO_LARGE":
+      return `Image trop lourde (${MAX_UPLOAD_MB} Mo max avant compression).`;
+    case "IMAGE_INVALID":
+      return "Le fichier ne ressemble pas à une image valide.";
+    case "IMAGE_LOAD_FAILED":
+      return "Impossible de charger l’image. Essayez un autre fichier.";
+    case "IMAGE_DIMENSIONS_FAILED":
+      return "Impossible de lire les dimensions de l’image.";
+    case "CANVAS_CTX_FAILED":
+      return "Erreur interne (canvas). Réessayez.";
+    case "BLOB_FAILED":
+      return "Impossible de compresser l’image. Réessayez.";
+    default:
+      return "Impossible de traiter l’image. Essayez un autre fichier.";
+  }
+}
+
+function isAllowedImageType(t: string): t is AllowedImageType {
+  return (ALLOWED_IMAGE_TYPES as readonly string[]).includes(t);
+}
+
 export default function HomePage() {
   const [input, setInput] = useState("");
   const [title, setTitle] = useState("");
@@ -41,6 +91,18 @@ export default function HomePage() {
   const [isCapturing, setIsCapturing] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Pour reset proprement les <input type="file" />
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  const stopCamera = () => {
+    const stream = videoRef.current?.srcObject as MediaStream | null;
+    if (stream) {
+      stream.getTracks().forEach((t) => t.stop());
+      if (videoRef.current) videoRef.current.srcObject = null;
+    }
+  };
 
   useEffect(() => {
     if (imageFile) {
@@ -72,24 +134,54 @@ export default function HomePage() {
           ),
         );
     } else {
-      const stream = videoRef.current?.srcObject as MediaStream | null;
-      if (stream) {
-        stream.getTracks().forEach((t) => t.stop());
-        if (videoRef.current) videoRef.current.srcObject = null;
-      }
+      stopCamera();
     }
   }, [isCapturing]);
 
+  function validateImageFile(file: File): string | null {
+    if (!file) return "Aucun fichier image n’a été détecté.";
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return `Image trop lourde (${MAX_UPLOAD_MB} Mo max avant compression).`;
+    }
+    if (!isAllowedImageType(file.type)) {
+      return "Format non autorisé. Formats acceptés : JPG / PNG / WEBP.";
+    }
+    return null;
+  }
+
   async function compressAndSet(file: File) {
+    setErrorGen(null);
+    setResult(null);
+
+    const err = validateImageFile(file);
+    if (err) {
+      setErrorGen(err);
+      return;
+    }
+
     setLoadingGenerate(true);
     try {
-      const compressed = await compressImage(file, 1500);
+      const compressed = await compressImage(file, 1500, {
+        output: "jpeg",
+        quality: 0.82,
+      });
+
+      // Garde-fou après compression
+      if (compressed.size > MAX_UPLOAD_BYTES) {
+        setErrorGen(
+          `Image encore trop lourde après compression (${MAX_UPLOAD_MB} Mo max).`,
+        );
+        return;
+      }
+
       setImageFile(compressed);
-    } catch {
-      setImageFile(file);
+      setInput("");
+      setIsCapturing(false);
+      stopCamera();
+    } catch (e) {
+      setErrorGen(humanizeImageError(e));
     } finally {
       setLoadingGenerate(false);
-      setIsCapturing(false);
     }
   }
 
@@ -97,39 +189,89 @@ export default function HomePage() {
     if (!videoRef.current || !canvasRef.current) return;
     const video = videoRef.current;
     const canvas = canvasRef.current;
+
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) {
+      setErrorGen("Erreur interne (canvas).");
+      return;
+    }
+
+    // Fond blanc (utile si le navigateur capture avec transparence / artefacts)
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(video, 0, 0);
 
     const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/jpeg"),
+      canvas.toBlob(resolve, "image/jpeg", 0.9),
     );
-    if (!blob) return;
+    if (!blob) {
+      setErrorGen("Impossible de capturer l’image.");
+      return;
+    }
 
     const rawFile = new File([blob], `capture-${Date.now()}.jpg`, {
       type: "image/jpeg",
     });
+
     await compressAndSet(rawFile);
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (loadingGenerate) return; // anti double-submit
+
     setErrorGen(null);
+    setResult(null);
+
+    const safeTitle = clampText(title, MAX_TITLE_LEN);
+    const safeAuthor = clampText(author, MAX_AUTHOR_LEN);
+
+    if (!safeAuthor) {
+      setErrorGen("Veuillez indiquer le nom de l’auteur.");
+      return;
+    }
+    if (!safeTitle) {
+      setErrorGen("Veuillez indiquer le titre du livre.");
+      return;
+    }
+
+    // Si mode texte : clamp côté UI (évite prompt énorme)
+    const safeInput = clampText(input, MAX_INPUT_LEN);
+
+    if (!imageFile && !safeInput) {
+      setErrorGen(
+        "Veuillez fournir un texte (option 1) ou une image (option 2) pour lancer la génération.",
+      );
+      return;
+    }
+
+    if (!imageFile && input.trim().length > MAX_INPUT_LEN) {
+      setErrorGen(`Texte trop long (max ${MAX_INPUT_LEN} caractères).`);
+      return;
+    }
+
     setLoadingGenerate(true);
 
     const form = new FormData();
     form.append("mode", mode);
-    form.append("title", title);
-    form.append("author", author);
+    form.append("title", safeTitle);
+    form.append("author", safeAuthor);
+
     if (imageFile) form.append("coverImage", imageFile);
-    else form.append("textSource", input);
+    else form.append("textSource", safeInput);
 
     try {
-      const res = await fetch("/api/generate/", { method: "POST", body: form });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erreur inconnue");
+      // IMPORTANT: pas de trailing slash (évite 308/301)
+      const res = await fetch("/api/generate", { method: "POST", body: form });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          typeof data?.error === "string" ? data.error : "Erreur inconnue",
+        );
+      }
 
       if (mode === "traduction") {
         setResult({ translation: data.translation });
@@ -159,8 +301,10 @@ export default function HomePage() {
     setErrorCover(null);
     setLoadingCover(true);
     try {
-      const res = await fetch(`/api/cover?isbn=${cleanIsbn}`);
-      const json = await res.json();
+      const res = await fetch(
+        `/api/cover?isbn=${encodeURIComponent(cleanIsbn)}`,
+      );
+      const json = await res.json().catch(() => ({}));
       if (res.ok && json.thumbnail) setFetchedCover(json.thumbnail);
       else setErrorCover("Couverture introuvable");
     } catch {
@@ -175,6 +319,21 @@ export default function HomePage() {
     setCopied((prev) => ({ ...prev, [key]: true }));
     setTimeout(() => setCopied((prev) => ({ ...prev, [key]: false })), 2000);
   };
+
+  const clearImage = () => {
+    setImageFile(null);
+    setResult(null);
+    setErrorGen(null);
+
+    setIsCapturing(false);
+    stopCamera();
+
+    // Reset des inputs file (sinon re-sélection du même fichier ne déclenche pas onChange)
+    if (coverInputRef.current) coverInputRef.current.value = "";
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
+  };
+
+  const isTextTooLong = !imageFile && input.trim().length > MAX_INPUT_LEN;
 
   return (
     <main className="max-w-4xl w-full bg-gradient-to-br from-[#fdfcfb] to-[#dedace] px-6 py-8 bg-white/80 rounded-3xl shadow-xl border border-gray-200 backdrop-blur-lg">
@@ -216,6 +375,7 @@ export default function HomePage() {
               type="text"
               value={author}
               onChange={(e) => setAuthor(e.target.value)}
+              maxLength={MAX_AUTHOR_LEN}
               className="w-full p-2 mt-1 rounded-md border border-gray-300 bg-white focus:ring focus:ring-pink-200"
             />
           </div>
@@ -228,6 +388,7 @@ export default function HomePage() {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              maxLength={MAX_TITLE_LEN}
               className="w-full p-2 mt-1 rounded-md border border-gray-300 bg-white focus:ring focus:ring-pink-200"
             />
           </div>
@@ -249,10 +410,16 @@ export default function HomePage() {
             rows={4}
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            maxLength={MAX_INPUT_LEN + 500} // UI tolère un peu, mais on bloque au submit si dépasse
             className="w-full p-2 rounded-md border bg-white disabled:bg-gray-100"
             placeholder="Coller ou recopier ici le texte de la 4ᵉ de couverture"
             disabled={!!imageFile}
           />
+          {!imageFile && input.trim().length > MAX_INPUT_LEN && (
+            <p className="text-xs text-red-600">
+              Texte trop long (max {MAX_INPUT_LEN} caractères).
+            </p>
+          )}
         </div>
 
         {/* Option 2 : Photo */}
@@ -276,15 +443,15 @@ export default function HomePage() {
               Prendre une photo
             </label>
             <input
+              ref={cameraInputRef}
               id="camera-input"
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               capture="environment"
               className="hidden"
               onChange={async (e: ChangeEvent<HTMLInputElement>) => {
                 const f = e.target.files?.[0] ?? null;
                 if (f) await compressAndSet(f);
-                setInput("");
                 setIsCapturing(false);
               }}
             />
@@ -307,7 +474,6 @@ export default function HomePage() {
 
             {isCapturing && (
               <div className="hidden md:flex flex-col items-center gap-4">
-                {/* Conseils d’utilisation */}
                 <p className="text-sm text-[#9542e3] animate-pulse">
                   Veuillez approcher le livre de la caméra et vous assurer que
                   le texte soit bien lisible.
@@ -347,14 +513,14 @@ export default function HomePage() {
               Importer une photo
             </label>
             <input
+              ref={coverInputRef}
               id="cover-input"
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               className="hidden"
               onChange={async (e: ChangeEvent<HTMLInputElement>) => {
                 const f = e.target.files?.[0] ?? null;
                 if (f) await compressAndSet(f);
-                setInput("");
                 setIsCapturing(false);
               }}
             />
@@ -376,13 +542,15 @@ export default function HomePage() {
               <button
                 type="button"
                 className="absolute top-1 right-1 bg-[#a15be3] p-1 rounded-full shadow hover:bg-[#9542e3]"
-                onClick={() => setImageFile(null)}
+                onClick={clearImage}
               >
                 <CloseIcon className="h-4 w-4 text-white" />
               </button>
             </div>
             {imageFile && (
-              <p className="mt-2 text-xs text-gray-600">({imageFile.name})</p>
+              <p className="mt-2 text-xs text-gray-600">
+                ({imageFile.name} — {Math.round(imageFile.size / 1024)} Ko)
+              </p>
             )}
           </div>
         )}
@@ -399,7 +567,7 @@ export default function HomePage() {
         <Button
           type="submit"
           className="w-full bg-[#a15be3] hover:bg-[#9542e3] text-white text-md transition-colors duration-200"
-          disabled={loadingGenerate}
+          disabled={loadingGenerate || isTextTooLong}
         >
           {loadingGenerate
             ? "Génération en cours…"
